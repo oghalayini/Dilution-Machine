@@ -33,6 +33,8 @@ char numkeys[ROWS][COLS] = {
 
 Keypad numpad = Keypad(makeKeymap(numkeys),rowPins,colPins,ROWS,COLS);
 
+bool flag = false;
+
 void setup() {
   pinMode(dir,OUTPUT);
   pinMode(step,OUTPUT);
@@ -71,4 +73,20 @@ void loop() {
     Serial.println(key);
   }
   */
+
+/* MOSFET Test
+ if (digitalRead(colorButton)) {
+   flag = true;  
+ }
+ if (flag) {
+   digitalWrite(MOSFET,HIGH);
+   if (digitalRead(colorButton)) {
+     flag = false;
+   }
+ } else {
+   digitalWrite(MOSFET,LOW);
+ }
+ */
+
+
 }
