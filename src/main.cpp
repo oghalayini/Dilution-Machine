@@ -2,6 +2,8 @@
 
 #include <Keypad.h>
 
+#include <A4988.h>
+
 const int dir = 2;
 const int step = 3;
 
@@ -31,7 +33,12 @@ char numkeys[ROWS][COLS] = {
   {'*','0','#','D'}
 };
 
+const int steps = 200;
+const int rpm = 120;
+
 Keypad numpad = Keypad(makeKeymap(numkeys),rowPins,colPins,ROWS,COLS);
+
+A4988 motor = A4988(steps, dir, step);
 
 bool flag = false;
 
@@ -48,6 +55,8 @@ void setup() {
 
   numpad.begin(makeKeymap(numkeys));
   numpad.setHoldTime(500);
+
+  motor.begin(rpm, 1);
 
   Serial.begin(9600);
 }
@@ -74,7 +83,8 @@ void loop() {
   }
   */
 
-/* MOSFET Test
+ /*MOSFET Test
+ Latch Test
  if (digitalRead(colorButton)) {
    flag = true;  
  }
@@ -86,7 +96,14 @@ void loop() {
  } else {
    digitalWrite(MOSFET,LOW);
  }
- */
+ 
+  Momentary Test
+  if (digitalRead(colorButton)) {
+    digitalWrite(MOSFET,HIGH);
+  } else {
+    digitalWrite(MOSFET,LOW);
+  }
+  */
 
 
 }
