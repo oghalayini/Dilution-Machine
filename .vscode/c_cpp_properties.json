@@ -10,15 +10,19 @@
             "includePath": [
                 "/Users/omar/Desktop/Dilution-Machine/include",
                 "/Users/omar/Desktop/Dilution-Machine/src",
+                "/Users/omar/Desktop/Dilution-Machine/.pio/libdeps/megaatmega2560/Adafruit-TFT-LCD",
+                "/Users/omar/Desktop/Dilution-Machine/.pio/libdeps/megaatmega2560/Adafruit TouchScreen",
+                "/Users/omar/Desktop/Dilution-Machine/.pio/libdeps/megaatmega2560/Adafruit GFX Library",
+                "/Users/omar/Desktop/Dilution-Machine/.pio/libdeps/megaatmega2560/Adafruit BusIO",
+                "/Users/omar/.platformio/packages/framework-arduino-avr/libraries/Wire/src",
+                "/Users/omar/.platformio/packages/framework-arduino-avr/libraries/SPI/src",
                 "/Users/omar/Desktop/Dilution-Machine/.pio/libdeps/megaatmega2560/StepperDriver/src",
                 "/Users/omar/Desktop/Dilution-Machine/.pio/libdeps/megaatmega2560/Keypad/src",
                 "/Users/omar/.platformio/packages/framework-arduino-avr/cores/arduino",
                 "/Users/omar/.platformio/packages/framework-arduino-avr/variants/mega",
                 "/Users/omar/.platformio/packages/framework-arduino-avr/libraries/EEPROM/src",
                 "/Users/omar/.platformio/packages/framework-arduino-avr/libraries/HID/src",
-                "/Users/omar/.platformio/packages/framework-arduino-avr/libraries/SPI/src",
                 "/Users/omar/.platformio/packages/framework-arduino-avr/libraries/SoftwareSerial/src",
-                "/Users/omar/.platformio/packages/framework-arduino-avr/libraries/Wire/src",
                 ""
             ],
             "browse": {
@@ -26,15 +30,19 @@
                 "path": [
                     "/Users/omar/Desktop/Dilution-Machine/include",
                     "/Users/omar/Desktop/Dilution-Machine/src",
+                    "/Users/omar/Desktop/Dilution-Machine/.pio/libdeps/megaatmega2560/Adafruit-TFT-LCD",
+                    "/Users/omar/Desktop/Dilution-Machine/.pio/libdeps/megaatmega2560/Adafruit TouchScreen",
+                    "/Users/omar/Desktop/Dilution-Machine/.pio/libdeps/megaatmega2560/Adafruit GFX Library",
+                    "/Users/omar/Desktop/Dilution-Machine/.pio/libdeps/megaatmega2560/Adafruit BusIO",
+                    "/Users/omar/.platformio/packages/framework-arduino-avr/libraries/Wire/src",
+                    "/Users/omar/.platformio/packages/framework-arduino-avr/libraries/SPI/src",
                     "/Users/omar/Desktop/Dilution-Machine/.pio/libdeps/megaatmega2560/StepperDriver/src",
                     "/Users/omar/Desktop/Dilution-Machine/.pio/libdeps/megaatmega2560/Keypad/src",
                     "/Users/omar/.platformio/packages/framework-arduino-avr/cores/arduino",
                     "/Users/omar/.platformio/packages/framework-arduino-avr/variants/mega",
                     "/Users/omar/.platformio/packages/framework-arduino-avr/libraries/EEPROM/src",
                     "/Users/omar/.platformio/packages/framework-arduino-avr/libraries/HID/src",
-                    "/Users/omar/.platformio/packages/framework-arduino-avr/libraries/SPI/src",
                     "/Users/omar/.platformio/packages/framework-arduino-avr/libraries/SoftwareSerial/src",
-                    "/Users/omar/.platformio/packages/framework-arduino-avr/libraries/Wire/src",
                     ""
                 ]
             },

@@ -4,6 +4,12 @@
 
 #include <A4988.h>
 
+#include <Adafruit_GFX.h>
+#include <TouchScreen.h>
+#include <Adafruit_TFTLCD.h>
+#include <Adafruit_SPIDevice.h>
+#include <Wire.h>
+
 const int dir = 2;
 const int step = 3;
 
@@ -17,6 +23,12 @@ const int metalButtonLED = 11;
 const int encoderRight = 18;
 const int encoderLeft = 19;
 const int encoderButton = 30;
+
+const int cs = 4;
+const int cd = 5;
+const int wr = 6;
+const int rd = 7;
+const int rst = 48;
 
 const int ROWS = 4;
 const int COLS = 4;
@@ -40,6 +52,8 @@ Keypad numpad = Keypad(makeKeymap(numkeys),rowPins,colPins,ROWS,COLS);
 
 A4988 motor = A4988(steps, dir, step);
 
+Adafruit_TFTLCD tft(cs, cd, wr, rd, rst);
+
 bool flag = false;
 
 void setup() {
@@ -59,6 +73,8 @@ void setup() {
   motor.begin(rpm, 1);
 
   Serial.begin(9600);
+
+  tft.begin(tft.readID());
 }
 
 void loop() {
@@ -83,7 +99,7 @@ void loop() {
   }
   */
 
- /*MOSFET Test
+ /* MOSFET Test
  Latch Test
  if (digitalRead(colorButton)) {
    flag = true;  
@@ -105,5 +121,5 @@ void loop() {
   }
   */
 
-
+tft.fillScreen(0xF0F);
 }
