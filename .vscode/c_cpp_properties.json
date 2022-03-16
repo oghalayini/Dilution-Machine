@@ -10,6 +10,9 @@
             "includePath": [
                 "/Users/omar/Desktop/Dilution-Machine/include",
                 "/Users/omar/Desktop/Dilution-Machine/src",
+                "/Users/omar/Desktop/Dilution-Machine/.pio/libdeps/megaatmega2560/RotaryEncoder/src",
+                "/Users/omar/Desktop/Dilution-Machine/.pio/libdeps/megaatmega2560/Encoder",
+                "/Users/omar/Desktop/Dilution-Machine/.pio/libdeps/megaatmega2560/Encoder/utility",
                 "/Users/omar/Desktop/Dilution-Machine/.pio/libdeps/megaatmega2560/Adafruit-TFT-LCD",
                 "/Users/omar/Desktop/Dilution-Machine/.pio/libdeps/megaatmega2560/Adafruit TouchScreen",
                 "/Users/omar/Desktop/Dilution-Machine/.pio/libdeps/megaatmega2560/Adafruit GFX Library",
@@ -30,6 +33,9 @@
                 "path": [
                     "/Users/omar/Desktop/Dilution-Machine/include",
                     "/Users/omar/Desktop/Dilution-Machine/src",
+                    "/Users/omar/Desktop/Dilution-Machine/.pio/libdeps/megaatmega2560/RotaryEncoder/src",
+                    "/Users/omar/Desktop/Dilution-Machine/.pio/libdeps/megaatmega2560/Encoder",
+                    "/Users/omar/Desktop/Dilution-Machine/.pio/libdeps/megaatmega2560/Encoder/utility",
                     "/Users/omar/Desktop/Dilution-Machine/.pio/libdeps/megaatmega2560/Adafruit-TFT-LCD",
                     "/Users/omar/Desktop/Dilution-Machine/.pio/libdeps/megaatmega2560/Adafruit TouchScreen",
                     "/Users/omar/Desktop/Dilution-Machine/.pio/libdeps/megaatmega2560/Adafruit GFX Library",

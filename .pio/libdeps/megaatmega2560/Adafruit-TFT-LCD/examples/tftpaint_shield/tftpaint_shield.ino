@@ -11,7 +11,7 @@
 #endif
 
 #ifndef USE_ADAFRUIT_SHIELD_PINOUT 
- #error "This sketch is intended for use with the TFT LCD Shield. Make sure that USE_ADAFRUIT_SHIELD_PINOUT is #defined in the Adafruit_TFTLCD.h library file."
+ //#error "This sketch is intended for use with the TFT LCD Shield. Make sure that USE_ADAFRUIT_SHIELD_PINOUT is #defined in the Adafruit_TFTLCD.h library file."
 #endif
 
 // These are the pins for the shield!
