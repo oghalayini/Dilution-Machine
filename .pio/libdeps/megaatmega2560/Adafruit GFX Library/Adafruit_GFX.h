@@ -298,7 +298,7 @@ private:
   uint8_t _textsize_x;
   uint8_t _textsize_y;
   uint16_t _outlinecolor, _fillcolor, _textcolor;
-  char _label[10];
+  char _label[15];
 
   bool currstate, laststate;
 };
