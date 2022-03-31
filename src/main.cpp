@@ -66,22 +66,22 @@ const int xm = A14;
 const int ym = A15;
 
 const int steps = 200;
-const int rpm = 120;
+const int rpm = 50;
 
-A4988 motor = A4988(steps, dir, step);
+A4988 motor = A4988(steps, dir, step, en);
 
 Adafruit_TFTLCD tft(cs, cd, wr, rd, rst);
 
 TouchScreen ts = TouchScreen(xp, yp, xm, ym, 285);
 
-Adafruit_GFX_Button buttons[5];
+Adafruit_GFX_Button dButtons[4];
 
-Adafruit_GFX_Button dButtons[3];
+Adafruit_GFX_Button numButtons[14];
 
 RotaryEncoder *encoder = nullptr;
 
 bool refresh = true;
-bool dilution = true;
+float dilution = 0.5;
 
 int TSRight1 = 125; //Need better calibration
 int TSLeft1 = 901;
@@ -90,29 +90,42 @@ int TSBot1 = 940;
 
 int stack[20], n = 20, top = -1;
 
-char buttonLabels[5][15] = {"Button 0", "Button 1", "Button 2","Button 3", "Button 4"};
-
-char dButtonLabels[7][3][15] = {
+char dButtonLabels[7][4][15] = {
   {"Dilution", "Statistics"}, 
   {"Percent","Fill"}, 
   {"Percent","Fill"},
-  {"Custom", "Preset1"},
-  {"Hold to Fill","Preset 1"},
+  {"2%", "1%","0.5%","Custom"},
+  {"Hold to Fill","RPM = 150","RPM = 50"},
   {"Encoder","Touch"},
   {"Backlight","Sleep"}
   };
 
+char numButtonLabels[14][5] = {"1","2","3","4","5","6","7","8","9","Del","0",".","Rst","Sel"};
+
 /******************* UI details */
-#define BUTTON_X 52
-#define BUTTON_Y 150
-#define BUTTON_W 80
-#define BUTTON_H 45
-#define BUTTON_SPACING_X 26
-#define BUTTON_SPACING_Y 30
-#define BUTTON_TEXTSIZE 3
+int buttonX = 0; //Button Starting X
+int buttonY = 0; //Button Starting Y
+int buttonW = 0; //Button Width
+int buttonH = 0; //Button Height
+int buttonSX = 0; //Button Spacing X
+int buttonSY = 0; //Button Spacing Y
+int buttonTxt = 0; //Button Text Size
+int menuHStart = 72;
+int menuVStart = 32;
+int menuThickness = 6;
+int menuXEnd = menuHStart + menuThickness;
+int menuYEnd = menuVStart + menuThickness;
 
 int pixel_x;
 int pixel_y;
+
+bool sel = false;
+bool dec = false;
+
+static int screen = 6;
+
+float number=0;
+float num1 = 0;
 
 void checkPosition() {
   encoder->tick(); // just call tick() to check the state.
@@ -135,19 +148,10 @@ void updateButton(int position, int direction) {
 }
 
 void drawSideMenu() {
-  tft.drawFastVLine(71,38,282,WHITE);
-  tft.drawFastVLine(72,38,282,WHITE);
-  tft.drawFastVLine(73,38,282,WHITE);
-  tft.drawFastVLine(74,38,282,WHITE);
-  tft.drawFastVLine(75,38,282,WHITE);
-  tft.drawFastVLine(76,38,282,WHITE);
-
-  tft.drawFastHLine(0,32,480,WHITE);
-  tft.drawFastHLine(0,33,480,WHITE);
-  tft.drawFastHLine(0,34,480,WHITE);
-  tft.drawFastHLine(0,35,480,WHITE);
-  tft.drawFastHLine(0,36,480,WHITE);
-  tft.drawFastHLine(0,37,480,WHITE);
+  for (int i = 0; i < menuThickness; i++) {
+    tft.drawFastVLine(i+menuHStart,menuVStart+menuThickness,282,WHITE);
+    tft.drawFastHLine(0,i+menuVStart,480,WHITE);
+  }
 
   // Back Button
   tft.fillCircle(35,81,25,WHITE);
@@ -256,6 +260,222 @@ void drawSetRed() {
   tft.print("Set");
 }
 
+void drawTopMenu(int screen) {
+  tft.fillRect(0,0,480,31,DILUTBLU);
+  tft.setCursor(20,5);
+  tft.setTextColor(WHITE);
+  tft.setTextSize(3);
+  switch (screen) {
+    case 1:
+      tft.print("Main Menu");
+      break;
+    case 2:
+      tft.print("Dilution");
+      break;
+    case 3:
+      tft.print("Statistics");
+      break;
+    case 4:
+      tft.print("% of Dilution = ");
+      tft.print(dilution);
+      tft.print("%");
+      break;
+    case 5:
+      tft.print("Fill");
+      break;
+    case 6:
+      tft.setCursor(6,5);
+      tft.print("Custom Dilution Percentage");
+      break;
+    case 7:
+      tft.print("Settings");
+      break;
+  }
+}
+
+void getButtonDimensions(int screen) {
+  switch (screen)
+  {
+  case 1:
+    /* code */
+    break;
+  case 4:
+    buttonH = 96;
+    buttonW = 82;
+    buttonSX = 39; // 402 = 3W + 4SX
+    buttonSY = 30; // 282 = 2H + 3SY
+    buttonX = menuXEnd+buttonSX;
+    buttonY = menuYEnd+buttonSY;
+    buttonTxt = 3;
+    break;
+  case 6:
+    buttonH = 40;
+    buttonW = 68;
+    buttonSY = 10; // 282 = 29*2 + 24 + 4H + 4SY
+    buttonSX = 26; // 402 = 4W + 5SX
+    buttonY = menuYEnd+29*2+24;
+    buttonX = menuXEnd+buttonSX;
+    buttonTxt = 3;
+    break;
+  default:
+    break;
+  }
+}
+
+void drawButtons(int screen) { // Try to make only 1 for loop with input to the function as the number of buttons and remove cases
+  getButtonDimensions(screen);
+  switch (screen)
+  {
+  case 4: {
+    for (int i = 0; i < 3; i++) {
+      dButtons[i].initButtonUL(&tft,buttonX+i*(buttonSX+buttonW),buttonY,buttonW,buttonH,WHITE,DILUTBLU,WHITE,dButtonLabels[screen-1][i],buttonTxt);
+      dButtons[i].drawButton();
+    }
+    buttonSX = 76;
+    buttonW = 250;
+    dButtons[3].initButtonUL(&tft,menuXEnd+buttonSX,buttonY+buttonSY+buttonH,buttonW,buttonH,WHITE,DILUTBLU,WHITE,dButtonLabels[screen-1][3],buttonTxt);
+    dButtons[3].drawButton();
+    break;
+  }
+  case 6: {
+    int counter = 0;
+    for (int i = 0; i < 4; i++) {
+      for (int j = 0; j < 3; j++) {
+        numButtons[counter].initButtonUL(&tft,(j+1)*buttonSX+menuXEnd+j*buttonW,120+i*(buttonH+buttonSY),buttonW,buttonH,WHITE,DILUTBLU,WHITE,numButtonLabels[counter],buttonTxt);
+        numButtons[counter].drawButton();
+        counter++;
+      }
+    }
+    for (int i = 0; i<2; i++) {
+    numButtons[i+counter].initButtonUL(&tft,buttonW*3+buttonSX*4+menuXEnd,120+i*(2*(buttonH+buttonSY)),buttonW,buttonH*2+buttonSY,WHITE,DILUTBLU,WHITE,numButtonLabels[i+counter],3);
+    numButtons[i+counter].drawButton();
+    }
+    break;
+  }
+  default: {
+    break;
+  }
+  }
+}
+
+void detectButtons() {
+  if (numButtons[0].contains(pixel_x,pixel_y)) {
+    if (!dec) {
+      number = (number*10) + 1;
+      numButtons[0].drawButton(true);
+      delay(100);
+      numButtons[0].drawButton();
+      sel = true;
+    } else {
+      if (num1 == 0) {
+        num1 = num1*10 + 1;
+        number = number + num1/10;
+        sel = true;
+      } else {
+        num1 = num1*10 + 1;
+        number = number + num1/100;
+        sel = true;
+      }
+    }
+  }
+  if (numButtons[1].contains(pixel_x,pixel_y)) {
+    number = (number*10) + 2;
+    numButtons[1].drawButton(true);
+    delay(100);
+    numButtons[1].drawButton();
+    sel = true;
+  }
+  if (numButtons[2].contains(pixel_x,pixel_y)) {
+    number = (number*10) + 3;
+    numButtons[2].drawButton(true);
+    delay(100);
+    numButtons[2].drawButton();
+    sel = true;
+  }
+  if (numButtons[3].contains(pixel_x,pixel_y)) {
+    number = (number*10) + 4;
+    numButtons[3].drawButton(true);
+    delay(100);
+    numButtons[3].drawButton();
+    sel = true;
+  }
+  if (numButtons[4].contains(pixel_x,pixel_y)) {
+    number = (number*10) + 5;
+    numButtons[4].drawButton(true);
+    delay(100);
+    numButtons[4].drawButton();
+    sel = true;
+  }
+  if (numButtons[5].contains(pixel_x,pixel_y)) {
+    number = (number*10) + 6;
+    numButtons[5].drawButton(true);
+    delay(100);
+    numButtons[5].drawButton();
+    sel = true;
+  }
+  if (numButtons[6].contains(pixel_x,pixel_y)) {
+    number = (number*10) + 7;
+    numButtons[6].drawButton(true);
+    delay(100);
+    numButtons[6].drawButton();
+    sel = true;
+  }
+  if (numButtons[7].contains(pixel_x,pixel_y)) {
+    number = (number*10) + 8;
+    numButtons[7].drawButton(true);
+    delay(100);
+    numButtons[7].drawButton();
+    sel = true;
+  }
+  if (numButtons[8].contains(pixel_x,pixel_y)) {
+    number = (number*10) + 9;
+    numButtons[8].drawButton(true);
+    delay(100);
+    numButtons[8].drawButton();
+    sel = true;
+  }
+  if (numButtons[9].contains(pixel_x,pixel_y)) {
+    number = 0;
+    numButtons[9].drawButton(true);
+    delay(100);
+    numButtons[9].drawButton();
+    sel = true;
+  }
+  if (numButtons[10].contains(pixel_x,pixel_y)) {
+    number = (number*10) + 0;
+    numButtons[10].drawButton(true);
+    delay(100);
+    numButtons[10].drawButton();
+    sel = true;
+  }
+  if (numButtons[11].contains(pixel_x,pixel_y)) {
+    sel = true;
+    dec = true;
+    numButtons[11].drawButton(true);
+    delay(100);
+    numButtons[11].drawButton();
+  }
+  if (numButtons[12].contains(pixel_x,pixel_y)) {
+    sel = true;
+    dec = false;
+    number = 0;
+    numButtons[12].drawButton(true);
+    delay(100);
+    numButtons[12].drawButton();
+  }
+  if (numButtons[13].contains(pixel_x,pixel_y)) {
+    sel = true;
+    dec = false;
+    dilution = number;
+    numButtons[13].drawButton(true);
+    delay(100);
+    numButtons[13].drawButton();
+    number = 0;
+    screen = 4;
+    refresh = true;
+  }
+}
+
 void flow() {
    flow_frequency++;
 }
@@ -291,12 +511,17 @@ void setup() {
   pinMode(metalButtonLED,OUTPUT);
 
   pinMode(flowSensor, INPUT);
+
   digitalWrite(flowSensor, HIGH);
+
   attachInterrupt(digitalPinToInterrupt(flowSensor), flow, RISING); // Setup Interrupt
+
   currentTime = millis();
   cloopTime = currentTime;
 
   motor.begin(rpm, 1);
+  motor.setEnableActiveState(LOW);
+  motor.disable();
 
   Serial.begin(9600);
 
@@ -308,31 +533,6 @@ void setup() {
   tft.fillScreen(DILUTBLU);
   drawSideMenu();
 
-/*
-  // Draw buttons
-  buttons[0].initButtonUL(&tft,26,57,125,75,BLACK,BLUE,WHITE,buttonLabels[0],2);
-  buttons[1].initButtonUL(&tft,(2*26+125),57,125,75,BLACK,BLUE,WHITE,buttonLabels[1],2);
-  buttons[2].initButtonUL(&tft,(3*26+125*2),57,125,75,BLACK,BLUE,WHITE,buttonLabels[2],2);
-  buttons[3].initButtonUL(&tft,77,(2*57+75),125,75,BLACK,BLUE,WHITE,buttonLabels[3],2);
-  buttons[4].initButtonUL(&tft,(2*77+125),(2*57+75),125,75,BLACK,BLUE,WHITE,buttonLabels[4],2);
-
-  buttons[0].drawButton();
-  drawOutline(26,57,125,75,6,YELLOW);
-  buttons[1].drawButton();
-  buttons[2].drawButton();
-  buttons[3].drawButton();
-  buttons[4].drawButton();
-  */
-
-  // setup the rotary encoder functionality
-
-  // use FOUR3 mode when PIN_IN1, PIN_IN2 signals are always HIGH in latch position.
-  // encoder = new RotaryEncoder(PIN_IN1, PIN_IN2, RotaryEncoder::LatchMode::FOUR3);
-
-  // use FOUR0 mode when PIN_IN1, PIN_IN2 signals are always LOW in latch position.
-  // encoder = new RotaryEncoder(PIN_IN1, PIN_IN2, RotaryEncoder::LatchMode::FOUR0);
-
-  // use TWO03 mode when PIN_IN1, PIN_IN2 signals are both LOW or HIGH in latch position.
   encoder = new RotaryEncoder(encoderLeft, encoderRight, RotaryEncoder::LatchMode::FOUR3);
 
   attachInterrupt(digitalPinToInterrupt(encoderRight), checkPosition, CHANGE);
@@ -344,39 +544,19 @@ void loop() {
   currentTime = millis();
 
   TSPoint p = ts.getPoint();
-  //f(p.z > ts.pressureThreshhold){         
+  if (p.z > 10 && p.z < 1000) {    
     pixel_x = map(p.y,TSBot1,TSTop1,0,480);
     pixel_y = map(p.x, TSRight1,TSLeft1, 0, 320); 
-  //}
+  } else {
+    pixel_x = 0;
+    pixel_y = 0;
+    motor.stop();
+    motor.disable();
+  }
 
   static int pos = 0;
 
   encoder->tick(); // just call tick() to check the state.
-
-/*
-  if(currentTime >= (cloopTime + 1000)) {
-    cloopTime = currentTime; // Updates cloopTime
-  }
-  if(flow_frequency != 0){
-    // Pulse frequency (Hz) = 7.5Q, Q is flow rate in L/min.
-    l_minute = (flow_frequency / 7.5); // (Pulse frequency x 60 min) / 7.5Q = flowrate in L/hour
-    l_minute = l_minute/60;
-    vol = vol +l_minute;
-    flow_frequency = 0; // Reset Counter
-    Serial.println("-----------------------------------------------");
-    Serial.print("Flow rate per second:");
-    Serial.print(l_minute, DEC); // Print litres/sec
-    Serial.println(" L/Sec");
-    Serial.println("-----------------------------------------------");
-    l_minute = l_minute*60;
-    Serial.print("Flow rate per minute:");
-    Serial.print(l_minute, DEC); // Print litres/sec
-    Serial.println(" L/min");
-  }
-  else {
-    Serial.println(" flow rate = 0 ");
-  }
-  */
   
   int newPos = encoder->getPosition();
   if (pos != newPos) {
@@ -384,216 +564,255 @@ void loop() {
     pos = newPos;
   }
 
-  static int screen = 1;
-
-  if (dilution) {
-    // Make seperate functions to draw each screen and to draw recurring elements
-    // Consolidate the adafruit buttons and re initialize the same buttons on different screens
-    // Make proper variables for UI parameters
-    //TODO: add encoder support (outlines and selection)
-    //TODO: add pump and valve functionality 
-    if (pixel_x > 10 && pixel_x < 60 && pixel_y > 56 && pixel_y < 106) {
-      if (top>-1) {
-      screen = stack[top];
-      pop();
+  // Make seperate functions to draw each screen and to draw recurring elements
+  // Make proper variables for UI parameters
+  //TODO: add encoder support (outlines and selection)
+  //TODO: add pump and valve functionality 
+  //TODO: add red button outline to dilution percentage screen to indicate dilution percentage is already chosen
+  if (pixel_x > 10 && pixel_x < 60 && pixel_y > 56 && pixel_y < 106) {
+    if (top>-1) {
+    screen = stack[top];
+    pop();
+    refresh = true;
+    pixel_x = 0;
+    pixel_y = 0;
+    } else {
+      drawBackRed();
+      delay(50);
+      drawBack();
+    }
+  }
+  if (pixel_y > 144 && pixel_y < 194 && pixel_x > 10 && pixel_x < 60) {
+      if (screen == 1) {
+        drawHomeRed();
+        delay(50);
+        drawHome();
+      } else {
+        push(screen);
+        screen = 1;
+        refresh = true;
+        pixel_x = 0;
+        pixel_y = 0;
+      }
+  }
+  if (pixel_y > 232 && pixel_y < 282 && pixel_x > 10 && pixel_x < 60) {
+    if (screen == 7) {
+      drawSetRed();
+      delay(75);
+      drawSet();
+    } else {
+      push(screen);
+      screen = 7;
       refresh = true;
       pixel_x = 0;
       pixel_y = 0;
-      } else {
-        drawBackRed();
-        delay(50);
-        drawBack();
+    }
+  }
+  
+  if (screen == 1) {
+    //Main Menu
+    if(refresh) {
+      refresh = false;
+      tft.fillRect(78,38,403,283,DILUTBLU);
+      drawTopMenu(screen);
+      for (int i = 0; i<2; i++) {
+        dButtons[i].initButtonUL(&tft,153,38+((i+1)*27+i*100),250,100,WHITE,DILUTBLU,WHITE,dButtonLabels[0][i],3);
+        dButtons[i].drawButton();
       }
     }
-    if (pixel_y > 144 && pixel_y < 194 && pixel_x > 10 && pixel_x < 60) {
-        if (screen == 1) {
-          drawHomeRed();
-          delay(50);
-          drawHome();
-        } else {
-          push(screen);
-          screen = 1;
-          refresh = true;
-          pixel_x = 0;
-          pixel_y = 0;
-        }
+    if (dButtons[0].contains(pixel_x,pixel_y)) {
+      dButtons[0].drawButton(true);
+      delay(75);
+      push(screen);
+      screen = 2;
+      refresh = true;
+      pixel_x = 0;
+      pixel_y = 0;
     }
-    if (pixel_y > 232 && pixel_y < 282 && pixel_x > 10 && pixel_x < 60) {
-      if (screen == 7) {
-        drawSetRed();
-        delay(75);
-        drawSet();
-      } else {
-        push(screen);
-        screen = 7;
-        refresh = true;
-        pixel_x = 0;
-        pixel_y = 0;
+    if (dButtons[1].contains(pixel_x,pixel_y)) {
+      dButtons[1].drawButton(true);
+      delay(75);
+      push(screen);
+      screen = 3;
+      refresh = true;
+      pixel_x = 0;
+      pixel_y = 0;
+    }
+  }
+  if (screen == 2) {
+    //Dilution
+    if (refresh) {
+      refresh = false;
+      tft.fillRect(78,38,403,283,DILUTBLU);
+      drawTopMenu(screen);
+      for (int i = 0; i<2; i++) {
+        dButtons[i].initButtonUL(&tft,153,38+((i+1)*27+i*100),250,100,WHITE,0x04B9,WHITE,dButtonLabels[1][i],3);
+        dButtons[i].drawButton();
       }
     }
-    if (screen == 1) {
-      if(refresh) {
-        refresh = false;
-        tft.fillRect(78,38,403,283,DILUTBLU);
-        tft.fillRect(0,0,300,30,DILUTBLU);
-        tft.setCursor(20,5);
-        tft.setTextColor(WHITE);
-        tft.setTextSize(3);
-        tft.print("Main Menu");
-
-        //memset(buttons, 0, sizeof(buttons));
-        for (int i = 0; i<2; i++) {
-          dButtons[i].initButtonUL(&tft,153,38+((i+1)*27+i*100),250,100,WHITE,0x04B9,WHITE,dButtonLabels[0][i],3);
-          dButtons[i].drawButton();
-        }
-      }
-      if (dButtons[0].contains(pixel_x,pixel_y)) {
+    if (dButtons[0].contains(pixel_x,pixel_y)) {
+      dButtons[0].drawButton(true);
+      delay(75);
+      push(screen);
+      screen = 4;
+      refresh = true;
+      pixel_x = 0;
+      pixel_y = 0;
+    }
+    if (dButtons[1].contains(pixel_x,pixel_y)) {
+      dButtons[1].drawButton(true);
+      delay(75);
+      push(screen);
+      screen = 5;
+      refresh = true;
+      pixel_x = 0;
+      pixel_y = 0;
+    }
+  } 
+  if (screen == 3) {
+    //Statistics
+    if (refresh) {
+      refresh = false;
+      tft.fillRect(78,38,403,283,DILUTBLU);
+      drawTopMenu(screen);
+    }
+  }     
+  if (screen == 4) {
+    //Percentage of Dilution
+    if(refresh) {
+      refresh = false;
+      tft.fillRect(78,38,403,283,DILUTBLU);
+      drawTopMenu(screen);
+      drawButtons(screen);
+    }
+    if (dButtons[0].contains(pixel_x,pixel_y)) {
+      if (dilution != 2) {
         dButtons[0].drawButton(true);
         delay(75);
-        push(screen);
-        screen = 2;
-        refresh = true;
-        pixel_x = 0;
-        pixel_y = 0;
-      }
-      if (dButtons[1].contains(pixel_x,pixel_y)) {
-        dButtons[1].drawButton(true);
-        delay(75);
-        push(screen);
-        screen = 3;
-        refresh = true;
+        dButtons[0].drawButton();
+        dilution = 2;
+        tft.fillRect(308,0,108,32,DILUTBLU);
+        tft.setCursor(308,5);
+        tft.print(dilution);
+        tft.print("%");
         pixel_x = 0;
         pixel_y = 0;
       }
     }
-    if (screen == 2) {
-      if (refresh) {
-        refresh = false;
-        tft.fillRect(78,38,403,283,DILUTBLU);
-        tft.fillRect(0,0,300,30,DILUTBLU);
-        tft.setCursor(20,5);
-        tft.setTextColor(WHITE);
-        tft.setTextSize(3);
-        tft.print("Dilution");
-        
-        pixel_x=0;
-        pixel_y=0;
-
-        for (int i = 0; i<2; i++) {
-          dButtons[i].initButtonUL(&tft,153,38+((i+1)*27+i*100),250,100,WHITE,0x04B9,WHITE,dButtonLabels[1][i],3);
-          dButtons[i].drawButton();
-        }
-      }
-      if (dButtons[0].contains(pixel_x,pixel_y)) {
-        dButtons[0].drawButton(true);
-        delay(75);
-        push(screen);
-        screen = 4;
-        refresh = true;
-        pixel_x = 0;
-        pixel_y = 0;
-      }
-      if (dButtons[1].contains(pixel_x,pixel_y)) {
+    if (dButtons[1].contains(pixel_x,pixel_y)) {
+      if (dilution != 1) {
         dButtons[1].drawButton(true);
         delay(75);
-        push(screen);
-        screen = 5;
-        refresh = true;
-        pixel_x = 0;
-        pixel_y = 0;
-      }
-    } 
-    if (screen == 3) {
-      if (refresh) {
-        refresh = false;
-        tft.fillRect(78,38,403,283,DILUTBLU);
-        tft.fillRect(0,0,200,30,DILUTBLU);
-        tft.setCursor(20,5);
-        tft.setTextColor(WHITE);
-        tft.setTextSize(3);
-        tft.print("Statistics");
-      }
-    }     
-    if (screen == 4) {
-      if(refresh) {
-        refresh = false;
-        tft.fillRect(78,38,403,283,DILUTBLU);
-        tft.fillRect(0,0,300,30,DILUTBLU);
-        tft.setCursor(20,5);
-        tft.setTextColor(WHITE);
-        tft.setTextSize(3);
-        tft.print("Percentage of Dilution");
-
-        //memset(buttons, 0, sizeof(buttons));
-        for (int i = 0; i<2; i++) {
-          dButtons[i].initButtonUL(&tft,153,38+((i+1)*27+i*100),250,100,WHITE,0x04B9,WHITE,dButtonLabels[3][i],3);
-          dButtons[i].drawButton();
-        }
-      }
-      if (dButtons[0].contains(pixel_x,pixel_y)) {
-        push(screen);
-        screen = 6;
-        refresh = true;
+        dButtons[1].drawButton();
+        dilution = 1;
+        tft.fillRect(308,0,108,32,DILUTBLU);
+        tft.setCursor(308,5);
+        tft.print(dilution);
+        tft.print("%");
         pixel_x = 0;
         pixel_y = 0;
       }
     }
-    if (screen == 5) {
-      if (refresh) {
-        refresh = false;
-        tft.fillRect(78,38,403,283,DILUTBLU);
-        tft.fillRect(0,0,300,30,DILUTBLU);
-        tft.setCursor(20,5);
-        tft.setTextColor(WHITE);
-        tft.setTextSize(3);
-        tft.print("Fill");
-
-        for (int i = 0; i<3; i++) {
-          dButtons[i].initButtonUL(&tft,153,40+(i*16+i*75),200,75,WHITE,0x04B9,WHITE,dButtonLabels[4][i],3);
-          dButtons[i].drawButton();
-        }
+    if (dButtons[2].contains(pixel_x,pixel_y)) {
+      if (dilution != 0.5) {
+        dButtons[2].drawButton(true);
+        delay(75);
+        dButtons[2].drawButton();
+        dilution = 0.5;
+        tft.fillRect(308,0,108,32,DILUTBLU);
+        tft.setCursor(308,5);
+        tft.print(dilution);
+        tft.print("%");
+        pixel_x = 0;
+        pixel_y = 0;
       }
-      if (dButtons[0].contains(pixel_x,pixel_y)) {
-        tft.setCursor(350,10);
-        tft.setTextColor(BLACK);
-        tft.setTextSize(2);
-        tft.print("Filling");
+    }
+    if (dButtons[3].contains(pixel_x,pixel_y)) {
+      dButtons[3].drawButton(true);
+      delay(75);
+      push(screen);
+      screen = 6;
+      refresh = true;
+      pixel_x = 0;
+      pixel_y = 0;
+    }
+  }
+  if (screen == 5) {
+    //Fill
+    if (refresh) { 
+      refresh = false;
+      tft.fillRect(78,38,402,282,DILUTBLU);
+      drawTopMenu(screen);
+      for (int i = 0; i<3; i++) {
+        dButtons[i].initButtonUL(&tft,153,40+(i*16+i*75),250,75,WHITE,0x04B9,WHITE,dButtonLabels[4][i],3);
+        dButtons[i].drawButton();
+      }
+    }
+    if (dButtons[0].contains(pixel_x,pixel_y)) {
+      motor.enable();
+      motor.startRotate(3600);
+      motor.nextAction();
+    }
+    if (dButtons[1].contains(pixel_x,pixel_y)) {
+      motor.setRPM(150);
+    }
+    if (dButtons[2].contains(pixel_x,pixel_y)) {
+      motor.setRPM(50);
+    }
+  }
+  if (screen == 6) {
+    //Custom Dilution Percentage
+    if (refresh) {
+      refresh = false;
+      tft.fillRect(78,38,403,283,DILUTBLU);
+      drawTopMenu(screen);
+      tft.fillRect(197,61,90+34*2+6,30+6,BLACK);
+      tft.fillRect(200,64,90+34*2,30,WHITE);
+      tft.setCursor(234,67);
+      tft.setTextColor(BLACK);
+      tft.setTextSize(3);
+      tft.print(dilution);
+      tft.print("%");
+      drawButtons(screen);
+    }
+    detectButtons();
+    if (sel) {
+      if (number <= 100) {
+        sel = false;
+        tft.fillRect(200,64,90+34*2,30,WHITE);
+        if (number < 10) {
+          tft.setCursor(234,67);
+          tft.setTextColor(BLACK);
+          tft.setTextSize(3);
+          tft.print(number);
+          tft.print("%");
+        } 
+        else if (number > 10) {
+          tft.setCursor(225,67);
+          tft.setTextColor(BLACK);
+          tft.setTextSize(3);
+          tft.print(number);
+          tft.print("%");
+        }
       } else {
-        tft.fillRect(300,0,180,30,DILUTBLU);
-      }
-    }
-
-    if (screen == 6) {
-      if (refresh) {
-        refresh = false;
-        tft.fillRect(78,38,403,283,DILUTBLU);
-        tft.fillRect(0,0,400,30,DILUTBLU);
-        tft.setCursor(20,10);
-        tft.setTextColor(WHITE);
-        tft.setTextSize(2);
-        tft.print("Custom Dilution Percentage");
-
-        for (int i = 0; i<2; i++) {
-          dButtons[i].initButtonUL(&tft,153,40+(i*16+i*75),200,75,WHITE,0x04B9,WHITE,dButtonLabels[5][i],3);
-          dButtons[i].drawButton();
-        }
-      }
-    }
-
-    if (screen == 7) {
-      if (refresh) {
-        refresh = false;
-        tft.fillRect(78,38,403,283,DILUTBLU);
-        tft.fillRect(0,0,400,30,DILUTBLU);
-        tft.setCursor(20,5);
-        tft.setTextColor(WHITE);
+        sel = false;
+        tft.fillRect(200,64,90+34*2,30,WHITE);
+        tft.setCursor(218,67);
+        tft.setTextColor(RED);
         tft.setTextSize(3);
-        tft.print("Settings");
-
-        for (int i = 0; i<2; i++) {
-          dButtons[i].initButtonUL(&tft,153,40+(i*16+i*75),200,75,WHITE,0x04B9,WHITE,dButtonLabels[6][i],3);
-          dButtons[i].drawButton();
-        }
+        tft.print("% Error");
+      }
+    }
+  }
+  if (screen == 7) {
+    //Settings
+    if (refresh) {
+      refresh = false;
+      tft.fillRect(78,38,403,283,DILUTBLU);
+      drawTopMenu(screen);
+      for (int i = 0; i<2; i++) {
+        dButtons[i].initButtonUL(&tft,153,40+(i*16+i*75),200,75,WHITE,0x04B9,WHITE,dButtonLabels[6][i],3);
+        dButtons[i].drawButton();
       }
     }
   }
