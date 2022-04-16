@@ -7,8 +7,6 @@
 #include <Adafruit_TFTLCD.h>
 #include <Adafruit_SPIDevice.h>
 #include <Wire.h>
-
-#include <RotaryEncoder.h>
  
 // Color definitions
 #define BLACK       0x0000      /*   0,   0,   0 */
@@ -31,13 +29,6 @@
 #define GREENYELLOW 0xAFE5      /* 173, 255,  47 */
 #define DILUTBLU    0x04B9
 
-volatile int flow_frequency;
-float vol = 0.0;
-float l_minute=0;
-
-unsigned long currentTime;
-unsigned long cloopTime;
-
 const int cs = 7;
 const int cd = 6;
 const int wr = 5;
@@ -51,14 +42,8 @@ const int en = 10;
 
 const int MOSFET = 11;
 
-const int metalButton = A1;
+const int metalButton = 31;
 const int metalButtonLED = 30;
-
-const int encoderRight = 18;
-const int encoderLeft = 19;
-const int encoderButton = A0;
-
-const int flowSensor = 20;
 
 const int xp = A12;
 const int yp = A13;
@@ -66,19 +51,7 @@ const int xm = A14;
 const int ym = A15;
 
 const int steps = 200;
-const int rpm = 50;
-
-A4988 motor = A4988(steps, dir, step, en);
-
-Adafruit_TFTLCD tft(cs, cd, wr, rd, rst);
-
-TouchScreen ts = TouchScreen(xp, yp, xm, ym, 285);
-
-Adafruit_GFX_Button dButtons[4];
-
-Adafruit_GFX_Button numButtons[14];
-
-RotaryEncoder *encoder = nullptr;
+int rpm = 120;
 
 bool refresh = true;
 float dilution = 0.5;
@@ -95,10 +68,10 @@ char dButtonLabels[7][4][15] = {
   {"Percent","Fill"}, 
   {"Percent","Fill"},
   {"2%", "1%","0.5%","Custom"},
-  {"Hold to Fill","RPM = 150","RPM = 50"},
+  {"Hold to Fill","RPM + 10","RPM - 10"},
   {"Encoder","Touch"},
   {"Backlight","Sleep"}
-  };
+};
 
 char numButtonLabels[14][5] = {"1","2","3","4","5","6","7","8","9","Del","0",".","Rst","Sel"};
 
@@ -122,29 +95,31 @@ int pixel_y;
 bool sel = false;
 bool dec = false;
 
-static int screen = 6;
+static int screen = 1;
 
-float number=0;
+float number = 0;
 float num1 = 0;
 
-void checkPosition() {
-  encoder->tick(); // just call tick() to check the state.
-}
+volatile int pulseCounter;
+float volume = 0.0;
+float qPerMin;
+float qPerSec;
+unsigned char flowSensor = 20;
+unsigned long currentTime;
+unsigned long loopTime;
 
-void drawOutline(int buttonX0, int buttonY0, int buttonW, int buttonH, int thickness, uint16_t color) {
-  for (int i = 1; i <= thickness; i++) {
-    tft.drawRoundRect(buttonX0-i, buttonY0-i, buttonW+i*2,buttonH+i*2, (min(buttonH, buttonW)/4), color);
-  }
-}
+A4988 motor = A4988(steps, dir, step, en);
 
-void updateButton(int position, int direction) {
-  //tft.fillRoundRect(buttonCoords[position - direction][0] - 10,buttonCoords[position - direction][1] - 10,125+10*2,75+6*2,19,WHITE);
-  //buttons[position - direction].drawButton();
-  //if ((int)encoder->getDirection() != 0) {
-  for (int i = 1; i <= 6; i++) {
-    //tft.drawRoundRect(buttonCoords[position - direction][0] - i,buttonCoords[position - direction][1] - i,125+2*i,75+2*i,(min(75, 125)/4),WHITE);
-  }
-  //}
+Adafruit_TFTLCD tft(cs, cd, wr, rd, rst);
+
+TouchScreen ts = TouchScreen(xp, yp, xm, ym, 285);
+
+Adafruit_GFX_Button dButtons[4];
+
+Adafruit_GFX_Button numButtons[14];
+
+void flow () {
+   pulseCounter++;
 }
 
 void drawSideMenu() {
@@ -203,7 +178,7 @@ void drawHome() {
   tft.print("Home");
 }
 
-void drawHomeRed() { // draws a red home icon
+void drawHomeRed() {
   tft.fillCircle(35,169,25,WHITE); 
   tft.fillRoundRect(27,155,5,8,1,RED);
   tft.fillTriangle(15,173,55,173,35,154,WHITE);
@@ -282,6 +257,9 @@ void drawTopMenu(int screen) {
       break;
     case 5:
       tft.print("Fill");
+      tft.setCursor(184,5);
+      tft.print("RPM = ");
+      tft.print(motor.getRPM());
       break;
     case 6:
       tft.setCursor(6,5);
@@ -293,7 +271,7 @@ void drawTopMenu(int screen) {
   }
 }
 
-void getButtonDimensions(int screen) {
+void getButtonDimensions(int screen) { //Continue the rest of the cases
   switch (screen)
   {
   case 1:
@@ -358,27 +336,17 @@ void drawButtons(int screen) { // Try to make only 1 for loop with input to the 
   }
 }
 
-void detectButtons() {
+void detectButtons() { 
   if (numButtons[0].contains(pixel_x,pixel_y)) {
-    if (!dec) {
-      number = (number*10) + 1;
-      numButtons[0].drawButton(true);
-      delay(100);
-      numButtons[0].drawButton();
-      sel = true;
-    } else {
-      if (num1 == 0) {
-        num1 = num1*10 + 1;
-        number = number + num1/10;
-        sel = true;
-      } else {
-        num1 = num1*10 + 1;
-        number = number + num1/100;
-        sel = true;
-      }
-    }
+    num1 = number;
+    number = (number*10) + 1;
+    numButtons[0].drawButton(true);
+    delay(100);
+    numButtons[0].drawButton();
+    sel = true;
   }
   if (numButtons[1].contains(pixel_x,pixel_y)) {
+    num1 = number;
     number = (number*10) + 2;
     numButtons[1].drawButton(true);
     delay(100);
@@ -386,6 +354,7 @@ void detectButtons() {
     sel = true;
   }
   if (numButtons[2].contains(pixel_x,pixel_y)) {
+    num1 = number;
     number = (number*10) + 3;
     numButtons[2].drawButton(true);
     delay(100);
@@ -393,6 +362,7 @@ void detectButtons() {
     sel = true;
   }
   if (numButtons[3].contains(pixel_x,pixel_y)) {
+    num1 = number;
     number = (number*10) + 4;
     numButtons[3].drawButton(true);
     delay(100);
@@ -400,6 +370,7 @@ void detectButtons() {
     sel = true;
   }
   if (numButtons[4].contains(pixel_x,pixel_y)) {
+    num1 = number;
     number = (number*10) + 5;
     numButtons[4].drawButton(true);
     delay(100);
@@ -407,6 +378,7 @@ void detectButtons() {
     sel = true;
   }
   if (numButtons[5].contains(pixel_x,pixel_y)) {
+    num1 = number;
     number = (number*10) + 6;
     numButtons[5].drawButton(true);
     delay(100);
@@ -414,6 +386,7 @@ void detectButtons() {
     sel = true;
   }
   if (numButtons[6].contains(pixel_x,pixel_y)) {
+    num1 = number;
     number = (number*10) + 7;
     numButtons[6].drawButton(true);
     delay(100);
@@ -421,6 +394,7 @@ void detectButtons() {
     sel = true;
   }
   if (numButtons[7].contains(pixel_x,pixel_y)) {
+    num1 = number;
     number = (number*10) + 8;
     numButtons[7].drawButton(true);
     delay(100);
@@ -428,6 +402,7 @@ void detectButtons() {
     sel = true;
   }
   if (numButtons[8].contains(pixel_x,pixel_y)) {
+    num1 = number;
     number = (number*10) + 9;
     numButtons[8].drawButton(true);
     delay(100);
@@ -435,13 +410,15 @@ void detectButtons() {
     sel = true;
   }
   if (numButtons[9].contains(pixel_x,pixel_y)) {
-    number = 0;
+    number = num1;
+    num1 = 0;
     numButtons[9].drawButton(true);
     delay(100);
     numButtons[9].drawButton();
     sel = true;
   }
   if (numButtons[10].contains(pixel_x,pixel_y)) {
+    num1 = number;
     number = (number*10) + 0;
     numButtons[10].drawButton(true);
     delay(100);
@@ -476,11 +453,6 @@ void detectButtons() {
   }
 }
 
-void flow() {
-   flow_frequency++;
-}
-//GFXcanvas1 canvas(128, 32);
-
 void push(int val) {
    if(top>=n-1) {
 
@@ -502,73 +474,81 @@ void pop() {
 }
 
 void setup() {
+  Serial.begin(9600);
+
   pinMode(dir,OUTPUT); //Use port registers for cleaner code
   pinMode(step,OUTPUT);
-
   pinMode(MOSFET,OUTPUT);
-
   pinMode(metalButton,INPUT);
   pinMode(metalButtonLED,OUTPUT);
-
   pinMode(flowSensor, INPUT);
-
+  
   digitalWrite(flowSensor, HIGH);
-
-  attachInterrupt(digitalPinToInterrupt(flowSensor), flow, RISING); // Setup Interrupt
-
-  currentTime = millis();
-  cloopTime = currentTime;
 
   motor.begin(rpm, 1);
   motor.setEnableActiveState(LOW);
   motor.disable();
 
-  Serial.begin(9600);
-
   tft.reset();
-
   tft.begin(tft.readID());
-
   tft.setRotation(3);
   tft.fillScreen(DILUTBLU);
+  
   drawSideMenu();
 
-  encoder = new RotaryEncoder(encoderLeft, encoderRight, RotaryEncoder::LatchMode::FOUR3);
+  currentTime = millis();
+  loopTime = currentTime;
 
-  attachInterrupt(digitalPinToInterrupt(encoderRight), checkPosition, CHANGE);
-  attachInterrupt(digitalPinToInterrupt(encoderLeft), checkPosition, CHANGE);
+  attachInterrupt(digitalPinToInterrupt(flowSensor), flow, RISING);
 }
 
 void loop() {
 
   currentTime = millis();
+  if(currentTime >= (loopTime + 1000)) {
+    loopTime = currentTime;
+    if(pulseCounter != 0){
+      // Pulse frequency (Hz) = 7.5Q, Q is flow rate in L/min.
+      qPerMin = pulseCounter / 7.54; //7.5 (1)
+      Serial.print("Rate: ");
+      Serial.print(qPerMin);
+      Serial.print(" L/min");
+      qPerSec = qPerMin/60;
+      Serial.print("\t");
+      Serial.print(qPerSec);
+      Serial.print(" L/sec");
+      volume = volume + qPerSec;
+      Serial.print("\t");
+      Serial.print("Vol:");
+      Serial.print(volume);
+      Serial.println(" L");
+      pulseCounter = 0; // Reset Counter
+    }
+    else {
+      Serial.print("Flow rate = 0");
+      Serial.print("\t");
+      Serial.print("Vol:");
+      Serial.print(volume);
+      Serial.println(" L");
+    }
+   }
 
   TSPoint p = ts.getPoint();
   if (p.z > 10 && p.z < 1000) {    
     pixel_x = map(p.y,TSBot1,TSTop1,0,480);
     pixel_y = map(p.x, TSRight1,TSLeft1, 0, 320); 
-  } else {
+  } 
+  else {
     pixel_x = 0;
     pixel_y = 0;
-    motor.stop();
+    motor.startBrake();
     motor.disable();
   }
-
-  static int pos = 0;
-
-  encoder->tick(); // just call tick() to check the state.
   
-  int newPos = encoder->getPosition();
-  if (pos != newPos) {
-    refresh = true;
-    pos = newPos;
-  }
-
   // Make seperate functions to draw each screen and to draw recurring elements
+  // Get water sensor and send message when disinfectant level is low
   // Make proper variables for UI parameters
-  //TODO: add encoder support (outlines and selection)
-  //TODO: add pump and valve functionality 
-  //TODO: add red button outline to dilution percentage screen to indicate dilution percentage is already chosen
+  // TODO: add red button outline to dilution percentage screen to indicate dilution percentage is already chosen
   if (pixel_x > 10 && pixel_x < 60 && pixel_y > 56 && pixel_y < 106) {
     if (top>-1) {
     screen = stack[top];
@@ -638,6 +618,15 @@ void loop() {
       pixel_x = 0;
       pixel_y = 0;
     }
+    if (digitalRead(metalButton)) {
+      motor.enable();
+      
+      motor.rotate(25);
+
+      digitalWrite(MOSFET,HIGH);
+    } else {
+      digitalWrite(MOSFET,LOW);
+  }
   }
   if (screen == 2) {
     //Dilution
@@ -681,6 +670,8 @@ void loop() {
     //Percentage of Dilution
     if(refresh) {
       refresh = false;
+      number = 0;
+      num1 = 0;
       tft.fillRect(78,38,403,283,DILUTBLU);
       drawTopMenu(screen);
       drawButtons(screen);
@@ -750,14 +741,31 @@ void loop() {
     }
     if (dButtons[0].contains(pixel_x,pixel_y)) {
       motor.enable();
-      motor.startRotate(3600);
-      motor.nextAction();
+      
+      motor.rotate(25);
+      //motor.nextAction();
+
+      digitalWrite(MOSFET,HIGH);
+    } else {
+      digitalWrite(MOSFET,LOW);
     }
     if (dButtons[1].contains(pixel_x,pixel_y)) {
-      motor.setRPM(150);
+      motor.setRPM(rpm+10);
+      rpm = motor.getRPM();
+      tft.fillRect(92,0,480,31,DILUTBLU);
+      tft.setCursor(184,5);
+      tft.print("RPM = ");
+      tft.print(motor.getRPM());
+      delay(75);
     }
     if (dButtons[2].contains(pixel_x,pixel_y)) {
-      motor.setRPM(50);
+      motor.setRPM(rpm-10);
+      rpm = motor.getRPM();
+      tft.fillRect(92,0,480,31,DILUTBLU);
+      tft.setCursor(184,5);
+      tft.print("RPM = ");
+      tft.print(motor.getRPM());
+      delay(75);
     }
   }
   if (screen == 6) {
@@ -777,7 +785,7 @@ void loop() {
     }
     detectButtons();
     if (sel) {
-      if (number <= 100) {
+      if (number < 100) {
         sel = false;
         tft.fillRect(200,64,90+34*2,30,WHITE);
         if (number < 10) {
@@ -787,7 +795,7 @@ void loop() {
           tft.print(number);
           tft.print("%");
         } 
-        else if (number > 10) {
+        else if (number >= 10) {
           tft.setCursor(225,67);
           tft.setTextColor(BLACK);
           tft.setTextSize(3);
